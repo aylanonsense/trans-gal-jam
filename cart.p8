@@ -23,8 +23,12 @@ local entity_classes={
 			self.move_x=ternary(buttons[1],1,0)-ternary(buttons[0],1,0)
 			self.move_y=ternary(buttons[3],1,0)-ternary(buttons[2],1,0)
 			-- adjust velocity
-			self.vx=self.move_x -- *ternary(self.move_y==0,1,0.7)
-			self.vy=self.move_y -- *ternary(self.move_x==0,1,0.7)
+			self.vx=2*self.move_x -- *ternary(self.move_y==0,1,0.7)
+			self.vy=2*self.move_y -- *ternary(self.move_x==0,1,0.7)
+		end,
+		post_update=function(self)
+			self.x=mid(self.radius,self.x,120-self.radius)
+			self.y=mid(self.radius,self.y,70-self.radius)
 		end,
 		draw=function(self)
 			circfill(self.x+0.5,self.y+0.5,self.radius,8)
@@ -35,6 +39,14 @@ local entity_classes={
 		is_obstacle=true,
 		draw=function(self)
 			circfill(self.x+0.5,self.y+0.5,self.radius,1)
+		end
+	},
+	seat={
+		width=40,
+		height=10,
+		is_obstacle=true,
+		draw=function(self)
+			rectfill(self.x+0.5,self.y+0.5,self.x+self.width+0.5,self.y+self.height+0.5,3)
 		end
 	}
 }
@@ -49,6 +61,10 @@ function _init()
 	player=spawn_entity("player",20,20)
 	spawn_entity("passenger",30,50)
 	spawn_entity("passenger",60,30)
+	spawn_entity("seat",5,0)
+	spawn_entity("seat",5,60)
+	spawn_entity("seat",70,0)
+	spawn_entity("seat",70,60)
 end
 
 function _update()
@@ -88,16 +104,44 @@ function _update()
 			for j=1,#entities do
 				local entity2=entities[j]
 				if i!=j and entity1.check_collision and entity2.is_obstacle then
+					local r1,r2=entity1.radius,entity2.radius
 					local dx=entity2.x-entity1.x
 					local dy=entity2.y-entity1.y
 					local square_dist=dx*dx+dy*dy
-					local sum_radius=entity1.radius+entity2.radius
-					-- the entities are overlapping
-					if square_dist<sum_radius*sum_radius then
-						local dist=sqrt(square_dist)
-						local dist_to_nudge=sum_radius-dist
-						entity1.x-=dist_to_nudge*dx/dist
-						entity1.y-=dist_to_nudge*dy/dist
+					-- use circle-based collision detection
+					if r1 and r2 then
+						local sum_radius=r1+r2
+						-- the entities are overlapping
+						if square_dist<sum_radius*sum_radius then
+							local dist=sqrt(square_dist)
+							local dist_to_nudge=sum_radius-dist
+							entity1.x-=dist_to_nudge*dx/dist
+							entity1.y-=dist_to_nudge*dy/dist
+						end
+					-- use rectangle-based collision detection
+					else
+						-- assumes "circle" colliding against rectangular obstacle
+						local x1,y1,w1,h1=entity1.x-r1,entity1.y-r1,2*r1,2*r1
+						local x2,y2,w2,h2=entity2.x,entity2.y,entity2.width,entity2.height
+						-- circle walked down into an obstacle
+						if rects_overlapping(x1+3,y1+h1/2,w1-6,h1/2,x2,y2,w2,h2) then
+							y1=y2-h1
+							entity1.vy=min(0,entity1.vy)
+						-- circle walked up into an obstacle
+						elseif rects_overlapping(x1+3,y1,w1-6,h1/2,x2,y2,w2,h2) then
+							y1=y2+h2
+							entity1.vy=max(0,entity1.vy)
+						-- circle walked left into an obstacle
+						elseif rects_overlapping(x1,y1+3,w1/2,h1-6,x2,y2,w2,h2) then
+							x1=x2+w2
+							entity1.vx=max(0,entity1.vx)
+						-- circle walked right into an obstacle
+						elseif rects_overlapping(x1+w1/2,y1+3,w1/2,h1-6,x2,y2,w2,h2) then
+							x1=x2-w1
+							entity1.vx=min(0,entity1.vx)
+						end
+						entity1.x=x1+r1
+						entity1.y=y1+r1
 					end
 				end
 			end
@@ -158,7 +202,9 @@ function spawn_entity(class_name,x,y,args,skip_init)
 			y=y or 0,
 			vx=0,
 			vy=0,
-			radius=0,
+			radius=nil,
+			width=nil,
+			height=nil,
 			-- entity methods
 			init=noop,
 			update=noop,
@@ -229,4 +275,9 @@ end
 -- if condition is true return the second argument, otherwise the third
 function ternary(condition,if_true,if_false)
 	return condition and if_true or if_false
+end
+
+-- returns true if two axis-aligned rectangles are overlapping
+function rects_overlapping(x1,y1,w1,h1,x2,y2,w2,h2)
+	return x1+w1>=x2 and x2+w2>=x1 and y1+h1>=y2 and y2+h2>=y1
 end
