@@ -31,7 +31,10 @@ local entity_classes={
 			self.y=mid(self.radius,self.y,70-self.radius)
 		end,
 		draw=function(self)
-			rect(self.x-self.radius+0.5,self.y-self.radius+0.5,self.x+self.radius-0.5,self.y+self.radius-0.5,14)
+			circ_perspective(self.x,self.y,0,self.radius,8)
+		end,
+		draw_flat=function(self)
+			-- rect(self.x-self.radius+0.5,self.y-self.radius+0.5,self.x+self.radius-0.5,self.y+self.radius-0.5,14)
 			circfill(self.x-0.5,self.y-0.5,self.radius-0.5,8)
 		end
 	},
@@ -39,7 +42,10 @@ local entity_classes={
 		radius=8,
 		is_obstacle=true,
 		draw=function(self)
-			rect(self.x-self.radius+0.5,self.y-self.radius+0.5,self.x+self.radius-0.5,self.y+self.radius-0.5,12)
+			circ_perspective(self.x,self.y,0,self.radius,15)
+		end,
+		draw_flat=function(self)
+			-- rect(self.x-self.radius+0.5,self.y-self.radius+0.5,self.x+self.radius-0.5,self.y+self.radius-0.5,12)
 			circfill(self.x-0.5,self.y-0.5,self.radius-0.5,1)
 		end
 	},
@@ -48,6 +54,9 @@ local entity_classes={
 		height=10,
 		is_obstacle=true,
 		draw=function(self)
+			rect_perspective(self.x+0.5,self.y+0.5,self.x+self.width-1.5,self.y+self.height-1.5,15)
+		end,
+		draw_flat=function(self)
 			rectfill(self.x+0.5,self.y+0.5,self.x+self.width-0.5,self.y+self.height-0.5,1)
 		end
 	}
@@ -174,31 +183,23 @@ end
 function _draw()
 	camera()
 	cls(1)
-	camera(-4,-29)
+	-- camera(-4,-29)
+	camera(-4,-2)
+	-- let's draw the flat version of the simulation
 	rectfill(0,0,119,69,15)
-	-- -- draw all entities
-	-- foreach(entities,function(entity)
-	-- 	entity:draw()
-	-- 	pal()
-	-- end)
-	-- local x
-	-- for x=0,120,1 do
-	-- 	local y
-	-- 	for y=0,70,10 do
-	-- 		local x2,y2=to_render_coords(x,y)
-	-- 		pset(x2,y2,8)
-	-- 	end
-	-- end
-
-	local a,b=to_render_coords(0,0)
-	local c,d=to_render_coords(0,69)
-	local e,f=to_render_coords(119,0)
-	local g,h=to_render_coords(119,69)
-	camera(30,-53)
-	line(a,b,c,d,8)
-	line(c,d,g,h,8)
-	line(g,h,e,f,8)
-	line(e,f,a,b,8)
+	-- draw all entities
+	foreach(entities,function(entity)
+		entity:draw_flat()
+		pal()
+	end)
+	-- now draw everything in perspective
+	camera(-4,-55)
+	rect_perspective(0,0,119,69,15)
+	-- draw all entities
+	foreach(entities,function(entity)
+		entity:draw()
+		pal()
+	end)
 end
 
 function spawn_entity(class_name,x,y,args,skip_init)
@@ -230,6 +231,7 @@ function spawn_entity(class_name,x,y,args,skip_init)
 			update=noop,
 			post_update=noop,
 			draw=noop,
+			draw_flat=noop,
 			draw_sprite=function(self,dx,dy,...)
 				draw_sprite(self.x-dx,self.y-dy,...)
 			end,
@@ -303,6 +305,27 @@ function rects_overlapping(x1,y1,w1,h1,x2,y2,w2,h2)
 end
 
 function to_render_coords(x,y,z)
-	-- return 0.75*x+0.25*y+0.5,0.5*y-0.1*x-(z or 0)+0.5
-	return x+y,y-x/2.5
+	x-=59.5
+	y-=35
+	x,y=0.8315*x+0.5556*y,(0.8315*y-0.5556*x)/1.5-(z or 0)
+	return x+59.5,y+35
+end
+
+function circ_perspective(x,y,z,r,c)
+	local i
+	for i=1,100 do
+		local x1,y1=to_render_coords(x+r*cos(i/100),y+r*sin(i/100),z)
+		pset(x1,y1,c)
+	end
+end
+
+function rect_perspective(x1,y1,x2,y2,c)
+	local px1,py1=to_render_coords(x1,y1)
+	local px2,py2=to_render_coords(x1,y2)
+	local px3,py3=to_render_coords(x2,y2)
+	local px4,py4=to_render_coords(x2,y1)
+	line(px1,py1,px2,py2,c)
+	line(px2,py2,px3,py3,c)
+	line(px3,py3,px4,py4,c)
+	line(px4,py4,px1,py1,c)
 end
