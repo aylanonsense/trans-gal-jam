@@ -16,7 +16,7 @@ local entity_classes={
 	player={
 		move_x=0,
 		move_y=0,
-		radius=5,
+		radius=8,
 		check_collision=true,
 		update=function(self)
 			-- check inputs
@@ -31,14 +31,16 @@ local entity_classes={
 			self.y=mid(self.radius,self.y,70-self.radius)
 		end,
 		draw=function(self)
-			circfill(self.x+0.5,self.y+0.5,self.radius,8)
+			rect(self.x-self.radius+0.5,self.y-self.radius+0.5,self.x+self.radius-0.5,self.y+self.radius-0.5,14)
+			circfill(self.x-0.5,self.y-0.5,self.radius-0.5,8)
 		end
 	},
 	passenger={
-		radius=5,
+		radius=8,
 		is_obstacle=true,
 		draw=function(self)
-			circfill(self.x+0.5,self.y+0.5,self.radius,1)
+			rect(self.x-self.radius+0.5,self.y-self.radius+0.5,self.x+self.radius-0.5,self.y+self.radius-0.5,12)
+			circfill(self.x-0.5,self.y-0.5,self.radius-0.5,1)
 		end
 	},
 	seat={
@@ -46,7 +48,7 @@ local entity_classes={
 		height=10,
 		is_obstacle=true,
 		draw=function(self)
-			rectfill(self.x+0.5,self.y+0.5,self.x+self.width+0.5,self.y+self.height+0.5,3)
+			rectfill(self.x+0.5,self.y+0.5,self.x+self.width-0.5,self.y+self.height-0.5,1)
 		end
 	}
 }
@@ -173,12 +175,30 @@ function _draw()
 	camera()
 	cls(1)
 	camera(-4,-29)
-	rectfill(0,0,120,70,15)
-	-- draw all entities
-	foreach(entities,function(entity)
-		entity:draw()
-		pal()
-	end)
+	rectfill(0,0,119,69,15)
+	-- -- draw all entities
+	-- foreach(entities,function(entity)
+	-- 	entity:draw()
+	-- 	pal()
+	-- end)
+	-- local x
+	-- for x=0,120,1 do
+	-- 	local y
+	-- 	for y=0,70,10 do
+	-- 		local x2,y2=to_render_coords(x,y)
+	-- 		pset(x2,y2,8)
+	-- 	end
+	-- end
+
+	local a,b=to_render_coords(0,0)
+	local c,d=to_render_coords(0,69)
+	local e,f=to_render_coords(119,0)
+	local g,h=to_render_coords(119,69)
+	camera(30,-53)
+	line(a,b,c,d,8)
+	line(c,d,g,h,8)
+	line(g,h,e,f,8)
+	line(e,f,a,b,8)
 end
 
 function spawn_entity(class_name,x,y,args,skip_init)
@@ -280,4 +300,9 @@ end
 -- returns true if two axis-aligned rectangles are overlapping
 function rects_overlapping(x1,y1,w1,h1,x2,y2,w2,h2)
 	return x1+w1>=x2 and x2+w2>=x1 and y1+h1>=y2 and y2+h2>=y1
+end
+
+function to_render_coords(x,y,z)
+	-- return 0.75*x+0.25*y+0.5,0.5*y-0.1*x-(z or 0)+0.5
+	return x+y,y-x/2.5
 end
