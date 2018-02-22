@@ -4,6 +4,11 @@ __lua__
 
 function noop() end
 
+local stage_min_x=5
+local stage_max_x=110
+local stage_min_y=0
+local stage_max_y=80
+
 local entities
 local player
 local scene_frame
@@ -23,19 +28,27 @@ local entity_classes={
 			self.move_x=ternary(buttons[1],1,0)-ternary(buttons[0],1,0)
 			self.move_y=ternary(buttons[3],1,0)-ternary(buttons[2],1,0)
 			-- adjust velocity
-			self.vx=2*self.move_x -- *ternary(self.move_y==0,1,0.7)
-			self.vy=2*self.move_y -- *ternary(self.move_x==0,1,0.7)
+			self.vx=3*(0.8315*self.move_x-0.5556*self.move_y)
+			self.vy=3*(0.5556*self.move_x+0.8315*self.move_y)
 		end,
 		post_update=function(self)
-			self.x=mid(self.radius,self.x,120-self.radius)
-			self.y=mid(self.radius,self.y,70-self.radius)
+			-- self.x=mid(self.radius,self.x,120-self.radius)
+			self.y=mid(stage_min_y+self.radius,self.y,stage_max_y-self.radius)
+			local x,y=to_render_coords(self.x,self.y,0)
+			if x<stage_min_x+self.radius or x>stage_max_x-self.radius then
+				x=mid(stage_min_x+self.radius,x,stage_max_x-self.radius)
+				self.x,self.y=to_game_coords(x,y,0)
+			end
 		end,
 		draw=function(self)
-			circ_perspective(self.x,self.y,0,self.radius,8)
+			circ_perspective(self.x,self.y,0,self.radius,ternary(self.blah,12,8))
 		end,
 		draw_flat=function(self)
 			-- rect(self.x-self.radius+0.5,self.y-self.radius+0.5,self.x+self.radius-0.5,self.y+self.radius-0.5,14)
 			circfill(self.x-0.5,self.y-0.5,self.radius-0.5,8)
+			local x,y=to_render_coords(self.x,self.y,20)
+			local x2,y2=to_game_coords(x,y,20)
+			pset(x2,y2,14)
 		end
 	},
 	passenger={
@@ -70,12 +83,12 @@ function _init()
 	button_presses={}
 	button_releases={}
 	player=spawn_entity("player",20,20)
-	spawn_entity("passenger",30,50)
-	spawn_entity("passenger",60,30)
-	spawn_entity("seat",5,0)
-	spawn_entity("seat",5,60)
-	spawn_entity("seat",70,0)
-	spawn_entity("seat",70,60)
+	-- spawn_entity("passenger",30,50)
+	-- spawn_entity("passenger",60,30)
+	-- spawn_entity("seat",5,0)
+	-- spawn_entity("seat",5,60)
+	-- spawn_entity("seat",70,0)
+	-- spawn_entity("seat",70,60)
 end
 
 function _update()
@@ -183,18 +196,18 @@ end
 function _draw()
 	camera()
 	cls(1)
-	-- camera(-4,-29)
-	camera(-4,-2)
-	-- let's draw the flat version of the simulation
-	rectfill(0,0,119,69,15)
-	-- draw all entities
-	foreach(entities,function(entity)
-		entity:draw_flat()
-		pal()
-	end)
+	camera(-4,-24)
+	-- -- let's draw the flat version of the simulation
+	-- rectfill(-200,stage_min_y,200,stage_max_y-1,15)
+	-- -- draw all entities
+	-- foreach(entities,function(entity)
+	-- 	entity:draw_flat()
+	-- 	pal()
+	-- end)
 	-- now draw everything in perspective
-	camera(-4,-55)
-	rect_perspective(0,0,119,69,15)
+	rect_perspective(-50,stage_min_y,200,stage_max_y-1,15)
+	line(stage_min_x,-200,stage_min_x,200)
+	line(stage_max_x,-200,stage_max_x,200)
 	-- draw all entities
 	foreach(entities,function(entity)
 		entity:draw()
@@ -309,6 +322,16 @@ function to_render_coords(x,y,z)
 	y-=35
 	x,y=0.8315*x+0.5556*y,(0.8315*y-0.5556*x)/1.5-(z or 0)
 	return x+59.5,y+35
+end
+
+function to_game_coords(x,y,z)
+	x-=59.5
+	y-=35
+	y+=(z or 0)
+	y*=1.5
+	local y2=0.8315*y+0.5556*x
+	local x2=0.8315*x-0.5556*y
+	return x2+59.5,y2+35
 end
 
 function circ_perspective(x,y,z,r,c)
